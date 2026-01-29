@@ -1,0 +1,140 @@
+---
+title: "01 Multinomial: Insight Edge"
+output: html_document
+date: "2025-07-27"
+---
+
+
+
+# Initial Data Preparation Steps
+
+```{r}
+setwd("C:/Users/Valerie/OneDrive - Singapore University of Technology and Design/00 YJ personal/00 Academics/00 Term 5 Mods/40.016 The Analytics Edge/00 1D Project/Submissions")
+rm(list=ls())
+train2024 <- read.csv("train2024.csv")
+test2024 <- read.csv("test2024.csv")
+summary(train2024)
+train2024
+
+```
+# Develop multinomial logit model for the dataset
+
+```{r}
+library(mlogit)
+
+# Step 1: Define columns to exclude (individual-specific)
+exclude_cols <- c("segment", "year", "miles", "night", "ppark", 
+                  "gender", "age", "educ", "region", "Urb", "income",
+                  "segmentind", "yearind", "milesind", "milesa", 
+                  "nightind", "nighta", "pparkind", "genderind", 
+                  "ageind", "agea", "educind", "regionind", "Urbind", 
+                  "incomeind", "incomea", "Ch1", "Ch2", "Ch3", "Ch4")
+
+# Step 2: Only keep alt-specific variables ending in 1–4
+#only variables with 1, 2, 3, or 4, meaning they refer to specific alternatives are chosen
+all_varying <- names(train2024)[4:109]
+alt_varying <- all_varying[grepl("[1-4]$", all_varying)]
+varying_cols <- setdiff(alt_varying, exclude_cols)
+
+# Step 3: Create the Choice column
+# For each row (each decision/task), identify which alternative was chosen by looking at the columns
+# Create choice column to know which alternative was selected
+# Defines an anonymous function: x is a vector representing one row from Ch1 to Ch4
+# This creates a logical vector: for example, if x = c(0, 1, 0, 0), then x == 1 becomes FALSE TRUE FALSE FALSE. 
+# This creates a logical vector: for example, if x = c(0, 1, 0, 0), then x == 1 becomes FALSE TRUE FALSE FALSE.
+train2024$Choice <- apply(train2024[, c("Ch1", "Ch2", "Ch3", "Ch4")], 1, function(x) which(x == 1))
+
+# Step 4: Subset to the first 12 tasks and reshape
+S <- dfidx(subset(train2024, Task <= 12), 
+           shape = "wide", 
+           choice = "Choice", 
+           sep = "", 
+           varying = varying_cols, 
+           idx = c("No", "Case"))
+
+# Step 5: Estimate mlogit model (include individual vars on right-hand side of | )
+#individual specific ones do not vary
+#remove the actual variables
+M <- mlogit(Choice ~ CC + GN + NS + BU + FA + LD + BZ + FC + FP + RP + PP + KA + SC + TS + NV + MA + LB + AF + HU + Price | 
+            segmentind + yearind + milesind + milesa + nightind + nighta + pparkind + genderind + ageind + educind + regionind + Urbind + incomeind + incomea -1, 
+            data = S)
+
+summary(M)
+```
+
+```{r}
+# Step 1: True choice vector
+# Actual Choice made by individual, alternative that was chosen
+ActualChoice <- subset(train2024, Task >= 13)[, "Choice"]
+
+# Step 2: Predicted probabilities matrix (n × 4)
+# Matrix where each entry is the model's predicted probability that observation i chooses alternative j
+S_new <- dfidx(subset(train2024, Task >= 13), 
+           shape = "wide", 
+           choice = "Choice", 
+           sep = "", 
+           varying = varying_cols, 
+           idx = c("No", "Case"))
+
+P <- predict(M, newdata = S_new)
+
+# Step 3: Construct indicator matrix yij (same dim as P)
+# Initialise matrix, 0s 
+Y <- matrix(0, nrow = nrow(P), ncol = ncol(P))
+Y[cbind(1:nrow(P), ActualChoice)] <- 1  # set yij = 1 for chosen alt
+
+# Step 4: Compute Log loss
+# Y = 1 as only the chosen alternative contributes to the loss of each obs
+# Non-chosen alternative does not contribute to the log loss function hence can be discarded and only 1 out of the 4 alternatives is chosen so we dont need it to be part of the log loss eqn 
+log_loss <- -mean(log(P[Y == 1]))
+log_loss
+```
+
+# Get the predicted probabilities in a seperate table 
+
+- predict on test data
+
+```{r}
+
+# Step 1: Define columns to exclude (individual-specific)
+exclude_cols_test <- c("segment", "year", "miles", "night", "ppark", 
+                  "gender", "age", "educ", "region", "Urb", "income",
+                  "segmentind", "yearind", "milesind", "milesa", 
+                  "nightind", "nighta", "pparkind", "genderind", 
+                  "ageind", "agea", "educind", "regionind", "Urbind", 
+                  "incomeind", "incomea", "Ch1", "Ch2", "Ch3", "Ch4")
+
+# Step 2: Only keep alt-specific variables ending in 1–4
+all_varying_test <- names(test2024)[4:109]
+alt_varying_test <- all_varying_test[grepl("[1-4]$", all_varying_test)]
+varying_cols_test <- setdiff(alt_varying_test, exclude_cols_test)
+
+# Step 3: Create the Choice column
+test2024$Choice <- 1
+
+# Get predicted probabilities for each alternative for each observation
+S_new_test <- dfidx(test2024, 
+           shape = "wide", 
+           sep = "", 
+           choice = "Choice",
+           varying = varying_cols, 
+           idx = c("No", "Case"))
+
+P_test <- predict(M, newdata = S_new_test)
+```
+
+# Writing to csv
+```{r}
+# Assign predicted probabilities directly to the corresponding columns
+test2024$Ch1 <- P_test[, 1]
+test2024$Ch2 <- P_test[, 2]
+test2024$Ch3 <- P_test[, 3]
+test2024$Ch4 <- P_test[, 4]
+
+# Keep only ID and predicted probabilities for export
+output <- test2024[, c("No", "Ch1", "Ch2", "Ch3", "Ch4")]
+
+# Write to CSV
+write.csv(output, file = "Multilogit_Model_Insight_Edge_Probabilities.csv", row.names = FALSE)
+```
+
