@@ -7,6 +7,7 @@ This folder showcases projects I have completed, including both coursework and i
 ## 🚀 Independent Projects
 
 - **Markov Chain Convergence Analysis**
+  - This project demonstrates how Markov chains converge to steady-state distributions using simulation and analytical methods.
   - Simulation and analytical study of Markov chain steady-state behavior  
   - Includes convergence analysis, burn-in effects, and initial state experiments  
   - 👉 https://github.com/WangZhengDa576/Public_WangZhengDa576/tree/main/projects/Markov-Chain-Convergence
