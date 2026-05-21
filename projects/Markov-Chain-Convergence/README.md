@@ -58,18 +58,16 @@ After convergence, trajectories overlap closely, showing that the long-run behav
 ---
 
 ## 📂 Project Structure
+```
 markov-chain-convergence/
-│
 ├── markov_simulation.ipynb
 ├── Markov_Chain_Convergence_Report.pdf
-│
 └── plots/
     ├── 01_convergence_main.png
     ├── 02_convergence_zoom.png
     ├── 03_initial_state_effect.png
     ├── 04_initial_state_zoom.png
-
----
+```
 
 ## 🚀 How to Run
 
